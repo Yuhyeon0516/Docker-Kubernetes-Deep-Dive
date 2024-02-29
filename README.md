@@ -97,9 +97,9 @@
 
             WORKDIR /app
 
-            COPY . /app # 파일 전체를 덮어쓰기하면서 파일이 변경되었다고 docker에서 인지함
+            COPY . /app # 파일 전체를 덮어쓰기하면서 package-lock.json과 node_modules가 삭제됨
 
-            RUN npm install # 파일이 변경되었기에 npm install도 진행함
+            RUN npm install # package-lock.json과 node_modules가 삭제되면서 package에 변동이 있다고 docker에서 감지하고 npm install을 진행함
 
             EXPOSE 80
 
@@ -128,6 +128,31 @@
             </td>
             </tr>
             </table>
+
+-   Image & Container 관리
+
+    -   `docker --help` 을 실행하면 어떤 명령어가 있는지 확인할 수 있음
+    -   Container 중지
+        -   `docker ps` 로 실행중인 docker container id 또는 name을 확인하여 `docker stop [id or name]`을 실행하면 container가 중지됨
+    -   Container 재시작
+        -   `docker ps -a` 로 docker history 중 재시작하고 싶은 container id 또는 name을 확인하여 `docker start [id or name]`을 실행하면 container가 재시작됨
+        -   `docker run` 과의 다른점은 `docker run`은 새로운 container를 생성하고 실행하지만 `docker start`는 생성되어있는 container를 실행함
+            -   그래서 `docker start`는 dockerfile이나 code의 변경이 없을때 주로 사용됨
+    -   Attached & Detached Container
+
+        -   위에서 알아본 `docker start` 로 docker container를 실행하는 경우 detached mode가 default이며 background에서 실행됨
+            -   만약 `docker start` 로 실행된 container를 attached mode로 변경하여 foreground에서 실행하고 싶을때는 2가지 방법이 있다,
+                1.  `docker ps`로 docker container id 또는 name을 확인하고 `docker attach [id or name]` 을 실행하면 attached mode로 foreground에서 실행된다.
+                2.  `docker start` 를 실행할 때 -a flag를 이용하여 실행하면 attached mode로 foreground에서 실행된다.
+
+                    (`docker start -a [id or name]`)
+        -   반대로 `docker run` 으로 실행하는 경우 attached mode가 default이며 foreground에서 실행됨
+
+            -   그래서 `docker run` 에서도 detached mode로 background에서 실행하고 싶을때는 -d flag를 이용하면 된다.
+
+                (`docker run -p [외부 노출 포트]:[내부 컨테이너 포트] -d [Image Id]`)
+
+        -   보통 Debug를 할떄 detached -> attached로 변경할 것으로 예상이 됨
 
 ### Section 3
 

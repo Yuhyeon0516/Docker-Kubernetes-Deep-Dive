@@ -17,7 +17,7 @@
     -   OS별 요구사항을 충족하지 못한다면 Docker Toolbox를 다운로드
     -   Linux는 Docker Engine을 설치하는 과정이 있음
 
--   first-demo-starting-setup
+-   first-demo
 
     -   Dockerfile 구성
 
@@ -44,7 +44,7 @@
 -   Image & Container?
 
     -   Image는 Container를 위한 Templates/Blueprints임
-        -   Container에서 가져다 쓸 수 있는 작은 코드? 도구? 조각? 이라고 생각하면 될듯
+        -   Container는 케이스, Image는 실제 내용물이라고 보면 편할듯
 
 -   사전 빌드된 Image의 사용 & 실행
 
@@ -52,7 +52,7 @@
     -   `docker run [image]` 명령어를 진행하면 local에 해당 image가 없을 시 library에서 가져온다고 알람이 발생하면서 다운로드되어 현재 실행중인 container에 추가되면서 실행됨(`docker ps -a` 명령어로 실행 중임을 확인할 수 있음)
     -   `docker run -it [image]` 명령어를 진행하면 앞에 받아두어 container에서 실행 중인 image로 실행됨
 
--   nodejs-app-starting
+-   nodejs-app
 
     -   Dockerfile
 
@@ -97,9 +97,11 @@
 
             WORKDIR /app
 
-            COPY . /app # 파일 전체를 덮어쓰기하면서 package-lock.json과 node_modules가 삭제됨
+            COPY . /app
+            # 파일 전체를 덮어쓰기하면서 package-lock.json과 node_modules가 삭제됨
 
-            RUN npm install # package-lock.json과 node_modules가 삭제되면서 package에 변동이 있다고 docker에서 감지하고 npm install을 진행함
+            RUN npm install
+            # package-lock.json과 node_modules가 삭제되면서 package에 변동이 있다고 docker에서 감지하고 npm install을 진행함
 
             EXPOSE 80
 
@@ -114,11 +116,14 @@
 
             WORKDIR /app
 
-            COPY package.json /app # package.json만 먼저 복사해서 변경 사항이 있는지 체크함
+            COPY package.json /app
+            # package.json만 먼저 복사해서 변경 사항이 있는지 체크함
 
-            RUN npm install # 위의 package.json이 변경사항이 없다면 npm install도 cache가 사용되어 시간이 단축됨
+            RUN npm install
+            # 위의 package.json이 변경사항이 없다면 npm install도 cache가 사용되어 시간이 단축됨
 
-            COPY . /app # 이후 나머지 파일을 전부 복사함
+            COPY . /app
+            # 이후 나머지 파일을 전부 복사함
 
             EXPOSE 80
 
@@ -141,11 +146,14 @@
     -   Attached & Detached Container
 
         -   위에서 알아본 `docker start` 로 docker container를 실행하는 경우 detached mode가 default이며 background에서 실행됨
+
             -   만약 `docker start` 로 실행된 container를 attached mode로 변경하여 foreground에서 실행하고 싶을때는 2가지 방법이 있다,
+
                 1.  `docker ps`로 docker container id 또는 name을 확인하고 `docker attach [id or name]` 을 실행하면 attached mode로 foreground에서 실행된다.
                 2.  `docker start` 를 실행할 때 -a flag를 이용하여 실행하면 attached mode로 foreground에서 실행된다.
 
                     (`docker start -a [id or name]`)
+
         -   반대로 `docker run` 으로 실행하는 경우 attached mode가 default이며 foreground에서 실행됨
 
             -   그래서 `docker run` 에서도 detached mode로 background에서 실행하고 싶을때는 -d flag를 이용하면 된다.
@@ -154,28 +162,93 @@
 
         -   보통 Debug를 할떄 detached -> attached로 변경할 것으로 예상이 됨
 
-### Section 3
+-   python-app
 
-### Section 4
+    -   Dockerfile을 아래와 같이 구성하고 `docker build`와 `docker run`을 실행하면 에러가 발생한다. 이럴떄 사용하여야 하는것이 interactive mode이다.
 
-### Section 5
+        ```docker
+        FROM python
 
-### Section 6
+        WORKDIR /app
 
-### Section 7
+        COPY . /app
 
-### Section 8
+        CMD ["python", "rng.py"]
 
-### Section 9
+        '''Error
+        Please enter the min number: Traceback (most recent call last):
+        File "/app/rng.py", line 3, in <module>
+            min_number = int(input('Please enter the min number: '))
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        EOFError: EOF when reading a line
+        '''
+        ```
 
-### Section 10
+    -   Interactive mode
+        -   사용자에게 입력을 받거나 어떠한 피드백에 대해 interactive하게 움직이려면 해당 모드를 사용하여야한다.
+        -   `docker run`을 실행할때 -i flag를 이용하여 사용할 수 있다.
 
-### Section 11
+-   Image & Container 삭제하기
 
-### Section 12
+    -   `docker rm [container id or name]`을 입력하면 container를 삭제할 수 있음
+        -   그러나 현재 container가 실행중이면 삭제가 안되어 `docker stop`을 진행 후 삭제하여야 한다.
+    -   `docker rmi [image id]`를 실행하면 해당 image를 삭제할 수 있음
+        -   그러나 사용중인 container가 있다면 삭제가 안됨(중지되어 있어도 존재한다면 동일)
+    -   `docker run` 진행 시 --rm flag를 사용하여 container를 실행하면 해당 container가 중지될 때 자동으로 삭제됨
 
-### Section 13
+        (`docker run -p [외부 노출 포트]:[내부 컨테이너 포트] -d --rm [Image Id]`)
 
-### Section 14
+-   Container에서 Container로 복사하기
 
-### Section 15
+    -   `docker cp [복사하고 싶은 파일] [container id or name][:경로]`
+        -   Ex1) `docker cp dummy/. abc:/test`
+            -   Local의 dummy 폴더 내의 모든 내용을 abc container의 test 폴더로 복사
+        -   Ex2) `docker cp abc:/test dummy`
+            -   abc container의 test 폴더를 local의 dummy안으로 복사
+
+-   Container와 Imagee에 name, tag 지정하기
+
+    -   `docker run`을 진행 시 --name flag를 사용하면 container name을 지정할 수 있음
+
+        -   `docker run -p [외부 노출 포트]:[내부 컨테이너 포트] -d --rm -- name [name] [Image Id]`
+
+    -   `docker build`를 진행 시 -t flag를 이용하면 image에 name과 tag를 지정할 수 있음
+
+        -   `docker build -t [name]:[tag] .`
+
+-   Docker hub에 image push
+
+    -   일단 docker hub에 가입하여야함
+    -   `docker push [repository]:[tag name]`을 통해 push 할 수 있음
+        -   repository와 local의 image name이 같아야함
+
+-   Docker hub에서 image pull
+    -   `docker pull [repository]:[tag name]`을 통해 pull 할 수 있음
+
+### Section 3 데이터 관리 및 볼륨으로 작업하기
+
+### Section 4 네트워킹: (교차) 컨테이너 통신
+
+### Section 5 Docker로 다중 컨테이너 애플리케이션 구축하기
+
+### Section 6 Docker Compose: 우아한 다중 컨테이너 오케스트레이션
+
+### Section 7 유틸리티 컨테이너로 작업하기 & 컨테이너에서 명령 실행하기
+
+### Section 8 더 복잡한 설정: Laravel & PHP 도커화
+
+### Section 9 Docker 컨테이너 배포하기
+
+### Section 10 요약
+
+### Section 11 Kubernetes 시작하기
+
+### Section 12 실전 Kubernetes - 핵심 개념 자세히 알아보기
+
+### Section 13 Kubeernetes로 데이터 & 볼륨 관리하기
+
+### Section 14 Kubernetes 네트워킹
+
+### Section 15 Kubernetes - 배포(AWS EKS)
+
+### Section 16 마무리 정리 & 다음 단계

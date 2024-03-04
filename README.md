@@ -227,6 +227,111 @@
 
 ### Section 3 데이터 관리 및 볼륨으로 작업하기
 
+-   데이터 카테고리/다양한 종류의 데이터 이해하기
+
+    -   Docker image는 읽기 전용이라 데이터의 수정이 필요하면 `docker build`를 다시 진행해야함
+        -   모든 데이터가 docker container 내부 snapshot data로 저장되기 떄문에 container가 삭제되면 데이터가 모두 손실됨(단순 stop/start는 괜찮음)
+        -   그래서 Docker container에서 volume라는 기능으로 읽기와 쓰기 모두 가능하게 설계가 되어 volume에 동적인 데이터를 저장할 수 있음
+            -   이때는 docker container가 삭제되었다가 다시 실행되어도 data가 남아있음
+
+-   data-volumes
+
+    -   feedback을 작성하고 저장하는 간단한 앱을 구성해보겠음
+    -   Dockerfile을 아래와 같이 구성
+
+        ```dockerfile
+        FROM node
+
+        WORKDIR /app
+
+        COPY package.json .
+
+        RUN npm install
+
+        COPY . .
+
+        EXPOSE 80
+
+        CMD [ "node", "server.js" ]
+        ```
+
+    -   이후 `docker build`, `docker run` 진행
+
+        ```shell
+        docker build -t feedback-node .
+        docker run -p 3000:80 -d --name feedback-app --rm feedback-node
+        ```
+
+    -   현재 Dockerfile 설정으로는 `docker stop`을 진행 시 container가 삭제되어 저장된 feedback이 모두 손실됨
+
+        -   --rm flag를 제외하고 `docker run`을 재진행
+        -   이후 `docker stop/start feedback-app`을 진행하면 저장된 feedback이 남아있음
+
+    -   Volume
+        -   잘 생각해보면 copy와 정말 비슷하다는 느낌을 주나 copy는 container내부에 volumes는 container 외부에 저장하는 것
+    -   Dockerfile을 아래와 같이 수정
+
+        ```dockerfile
+        FROM node
+
+        WORKDIR /app
+
+        COPY package.json .
+
+        RUN npm install
+
+        COPY . .
+
+        EXPOSE 80
+
+        VOLUME [ "/app/feedback" ] # app/feedback을 volume에 맵핑
+
+        CMD [ "node", "server.js" ]
+        ```
+
+    -   이후 `docker build`, `docker run` 진행
+
+        ```shell
+        docker build -t feedback-node:volumes .
+        docker run -p 3000:80 -d --name feedback-app --rm feedback-node:volumes
+        ```
+
+    -   그러나 feedback을 save하고 `docker stop` 후 `docker run`을 다시 진행 시 저장된 feedback이 조회가 안됨
+        -   그 이유는 Dockerfile을 VOLUME으로 설정하는것은 익명 volume으로써 docker container가 삭제될떄 같이 삭제됨
+        -   그래서 명명된 volume으로 재설정을 하여 docker container가 삭제되어도 volume이 삭제되지 않도록 설정이 필요함
+    -   Dockerfile을 이전과 동일하게 다시 변경
+
+        ```dockerfile
+        FROM node
+
+        WORKDIR /app
+
+        COPY package.json .
+
+        RUN npm install
+
+        COPY . .
+
+        EXPOSE 80
+
+        CMD [ "node", "server.js" ]
+        ```
+
+    -   `docker build`를 재진행
+
+        ```shell
+        docker build -t feedback-node:volumes .
+        ```
+
+    -   이후 `docker run`을 진행할 때 -v flag를 이용하여 명명된 volume을 생성
+
+        ```shell
+        docker run -d -p 3000:80 --name feedback-app --rm -v feedback:/app/feedback feedback-node:volumes # -v [명명]:[경로]
+        ```
+
+    -   위와 같이 진행하면 `docker stop`을 진행하면서 docker container가 삭제되어도 volume은 남아있음(docker volume ls로 확인가능)
+    -   그러면 이제 `docker run`을 진행할때 동일한 volume을 -v flag로 설정해준다면 이전에 생성한 volume과 연결이 되어 저장된 data가 모두 남아있음을 확인할 수 있음
+
 ### Section 4 네트워킹: (교차) 컨테이너 통신
 
 ### Section 5 Docker로 다중 컨테이너 애플리케이션 구축하기

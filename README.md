@@ -332,6 +332,107 @@
     -   위와 같이 진행하면 `docker stop`을 진행하면서 docker container가 삭제되어도 volume은 남아있음(docker volume ls로 확인가능)
     -   그러면 이제 `docker run`을 진행할때 동일한 volume을 -v flag로 설정해준다면 이전에 생성한 volume과 연결이 되어 저장된 data가 모두 남아있음을 확인할 수 있음
 
+-   Bind Mount
+
+    -   Bind Mount는 volume과 거의 유사한 기능을 보이나 Volume은 영구적이고 편집이 불가능하나 Bind Mount는 영구적이고 편집이 가능한 데이터를 저장할때 사용함
+    -   주로 개발과정에서 사용이 됨
+    -   `docker run`을 진행 할때 volume과 동일하게 -v flag를 이용하여 bind mount를 사용할 수 있음
+
+        ```shell
+        macOS / Linux : docker run -d -p 3000:80 --name feedback-app --rm -v feedback:/app/feedback -v $(pwd):/app:ro -v /app/node_modules feedback-node:volumes
+        Windows: docker run -d -p 3000:80 --name feedback-app --rm -v feedback:/app/feedback -v "%cd%":/app:ro -v /app/node_modules feedback-node:volumes
+        # 현재 이것을 실행하는 폴더를 /app에 read only로 mount하고 /app/node_modules는 내부 컨테이너에서 사용하라는 뜻
+        # 익명 볼륨이 우선순위가 가장 높으며 그 다음 구체적인 경로를 가지는 볼륨이 우선순위가 높음
+        # 이렇게하면 수정하는 내용을 실시간으로 볼 수 있음
+        ```
+
+-   중간 정리
+    |명령어|이름|설명|우선순위|
+    |------|---|---|---|
+    |`docker run -v path`|익명 볼륨|컨테이너가 삭제되면 같이 삭제됨|1|
+    |`docker run -v name:path`|명명 볼륨|컨테이너가 삭제되어도 동일한 볼륨의 이름으로 실행되면 이전 데이터가 유지됨|상세경로가 자세한 순|
+    |`docker run -v path:path`|바인드 마운트|로컬 파일을 실시간으로 마운트함|-|
+
+-   Docker Volume 관리하기
+
+    -   `docker volume ls` : 생성된 docker volume의 리스트를 확인(바인드 마운트는 docker에서 관리를 하지않아 리스트에 뜨지 않음)
+    -   `docker volume create [name]` : docker volume을 생성함
+    -   `docker volume inspect [name]` : docker volume의 상세 내용을 확인할 수 있음
+    -   `docker volume rm [name]` : docker volume을 삭제
+    -   `docker volume prune` : 사용하지 않는 volume을 삭제
+
+-   Dockerignore
+
+    -   `.dockerignore`에 `docker build`를 할 때 제외할 파일을 `.gitignore`처럼 작성하면 제외 후 build됨
+
+-   환경변수(ENVironment)
+
+    -   Dockerfile에 env에 대한 내용을 작성하고 `docker run`을 진행할때 값을 전달해줌
+
+        -   Dockerfile 예시
+
+            ```dockerfile
+            FROM node
+
+            WORKDIR /app
+
+            COPY package.json .
+
+            RUN npm install
+
+            COPY . .
+
+            ENV PORT 80 # PORT라는 ENV에 기본값을 80으로 설정
+
+            EXPOSE $PORT # ENV에 PORT로 설정해준 값을 사용
+
+            CMD [ "node", "server.js" ]
+            ```
+
+            1. PORT의 기본값을 Dockerfile에 작성하면서 그대로 사용하는 방법이며 이전과 동일하게 `docker run`을 진행하면 된다
+            2. `docker run`을 진행할때 --env(-e) flag를 이용하여 입력이 가능
+                ```shell
+                docker run -d -p 3000:80 -e PORT=80 --name feedback-app --rm -v feedback:/app/feedback -v $(pwd):/app:ro -v /app/node_modules feedback-node:volumes
+                ```
+            3. .env를 생성하고 `docker run`을 진행 시 --env-file flag로 해당 파일을 참고
+                ```env
+                PORT=8000 # .env에서 PORT의 값을 설정
+                ```
+                ```shell
+                docker run -d -p 3000:80 --env-file ./.env --name feedback-app --rm -v feedback:/app/feedback -v $(pwd):/app:ro -v /app/node_modules feedback-node:volumes
+                ```
+
+-   빌드인수(ARGuments)
+
+    -   ARG는 code에서 가져다 쓰는건 불가능함
+    -   ENV와 유사하나 ENV는 container를 생성할 때 값을 전달해주는 반면에 ARG는 image를 build할때 값을 전달해줌
+    -   결국 ARG는 image를 생성하면 값이 잠기는 개념임
+    -   예시
+
+        ```dockerfile
+        FROM node
+
+        WORKDIR /app
+
+        COPY package.json .
+
+        RUN npm install
+
+        COPY . .
+
+        ARG DEFAULT_PORT=80
+
+        ENV PORT ${DEFAULT_PORT}
+
+        EXPOSE ${PORT}
+
+        CMD [ "node", "server.js" ]
+        ```
+
+        ```shell
+        docker build feedback-node:dev --build-arg DEFAULT_PORT=8000 .
+        ```
+
 ### Section 4 네트워킹: (교차) 컨테이너 통신
 
 ### Section 5 Docker로 다중 컨테이너 애플리케이션 구축하기

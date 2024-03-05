@@ -641,6 +641,75 @@
         docker run --name goals-frontend --rm -d -p 3000:3000 -it goals-react # React 앱의 경우 대화형 상호작용을 위해 -it flag를 추가하여야한다
         ```
 
+-   효율적인 container 간 통신을 위한 docker network 추가
+
+    -   먼저 3개의 container를 연결할 network를 생성
+
+        ```shell
+        docker network create goals-net
+        ```
+
+    -   이후 mongodb를 --network flag를 이용하여 `docker run` 진행
+
+        ```shell
+        docker run --name mongodb --rm -d --network goals-net mongo
+        ```
+
+    -   Backend도 동일하게 --network flag를 이용하여 `docker run` 진행해야하나 그전에 mongodb 주소를 변경 후 `docker build`, `docker run` 진행
+
+        ```javascript
+        mongoose.connect(
+            // "mongodb://host.docker.internal:27017/course-goals",
+            "mongodb://mongodb:27017/course-goals",
+            {
+                useNewUrlParser: true,
+                useUnifiedTopology: true,
+            },
+            (err) => {
+                if (err) {
+                    console.error("FAILED TO CONNECT TO MONGODB");
+                    console.error(err);
+                } else {
+                    console.log("CONNECTED TO MONGODB");
+                    app.listen(80);
+                }
+            }
+        );
+        ```
+
+        ```shell
+        cd backend
+        docker build -t goals-node .
+        docker run --name goals-backend --rm -d --network goals-net goals-node
+        ```
+
+    -   마지막으로 frontend도 --network flag를 이용하여 `docker run` 진행해야하나 backend와 동일하게 주소를 변경해야한다.(localhost -> goals-backend)
+
+        ```shell
+        docker build -t goals-react .
+        docker run --name goals-frontend --network goals-net --rm -p 3000:3000 -it goals-react
+        ```
+
+        -   그러나 위와 같이 하면 goals-backend를 찾을 수 없다고 에러가 발생함
+        -   왜냐면 backend는 container에서 직접 node 명령어로 동작시켰기 때문에 network에 관련된 사항을 알고있으나 React의 javascript의 경우 browser에서 직접 컨트롤하기 때문에 network 관련사항을 알 수 없음
+        -   이와 같은 상황을 해결하려면 backend부터 다시 진행하여야한다.
+
+            -   Backend에서 `docker run`을 진행할때 -p flag를 이용하여 80번 port를 외부에 열어둔다.
+
+                ```shell
+                docker run --name goals-backend --rm -d -p 80:80 --network goals-net goals-node
+                ```
+
+            -   이후 frontend에서 goals-backend로 변경하였던 주소를 다시 localhost로 변경
+
+                -   backend가 localhost:80에서 실행중이기 때문에 localhost로 접근이 가능.
+                -   이후 `docker build`, `docker run`을 진행
+
+                    ```shell
+                    docker build -t goals-react .
+                    docker run --name goals-frontend --rm -d -p 3000:3000 -it goals-react # localhost:80으로 접근할 예정이라 --network flag는 이제 필요 없어짐
+                    ```
+
 ### Section 6 Docker Compose: 우아한 다중 컨테이너 오케스트레이션
 
 ### Section 7 유틸리티 컨테이너로 작업하기 & 컨테이너에서 명령 실행하기

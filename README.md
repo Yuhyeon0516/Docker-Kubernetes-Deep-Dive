@@ -759,6 +759,132 @@
         docker run --name goals-backend --rm -d -p 80:80 --network goals-net goals-node
         ```
 
+-   Backend container의 volume, bind mount, polishing 설정
+
+    -   현재 backend의 code를 보면 logs 폴더에 access log가 남도록 설정되어있는데 이 부분도 logs volume으로 설정.
+
+        ```shell
+        docker run --name goals-backend -v logs:/app/logs --rm -d -p 80:80 --network goals-net goals-node
+        ```
+
+    -   이후 code의 live update를 확인하기 위해 bind mount를 설정
+
+        ```shell
+        docker run --name goals-backend -v $(pwd):/app:ro -v logs:/app/logs --rm -d -p 80:80 --network goals-net goals-node
+        ```
+
+    -   Container 내부에서 의존성으로 인한 충돌을 방지하기 위해 node_modules도 volume으로 설정해줌
+
+        -   아래와 같이 설정하면 bind mount때 사용된 node_modules가 container 내부의 /app/node_modules를 덮어씌우지 않음(우선순위로 인해)
+
+            ```shell
+            docker run --name goals-backend -v $(pwd):/app:ro -v logs:/app/logs -v /app/node_modules --rm -d -p 80:80 --network goals-net goals-node
+            ```
+
+    -   이후 nodemon으로 code의 live update를 감지하도록 변경
+
+        -   package.json의 devDependencies와 start script 추가
+
+            ```json
+            {
+                "name": "backend",
+                "version": "1.0.0",
+                "description": "",
+                "main": "index.js",
+                "scripts": {
+                    "test": "echo \"Error: no test specified\" && exit 1",
+                    "start": "nodemon app.js"
+                },
+                "author": "Maximilian Schwarzmüller / Academind GmbH",
+                "license": "ISC",
+                "dependencies": {
+                    "body-parser": "^1.19.0",
+                    "express": "^4.17.1",
+                    "mongoose": "^5.10.3",
+                    "morgan": "^1.10.0"
+                },
+                "devDependencies": {
+                    "nodemon": "^2.0.4"
+                }
+            }
+            ```
+
+        -   이후 Dockerfile에서 마지막 CMD 구문을 npm run start로 변경
+
+            ```dockerfile
+            FROM node
+
+            WORKDIR /app
+
+            COPY package.json .
+
+            RUN npm install
+
+            COPY . .
+
+            EXPOSE 80
+
+            CMD [ "npm", "run", "start" ]
+            ```
+
+        -   Dockerfile과 package.json이 변경되었으니 `docker build`, `docker run` 재진행
+
+            ```shell
+            docker build -t goals-node .
+            docker run --name goals-backend -v $(pwd):/app:ro -v logs:/app/logs -v /app/node_modules --rm -d -p 80:80 --network goals-net goals-node
+            ```
+
+    -   마지막으로 기존에 backend에 mongodb username과 password를 hard coding 해두었는데 그것을 env로 변경
+
+        -   Dockerfile에 ENV를 추가
+
+            ```dockerfile
+            FROM node
+
+            WORKDIR /app
+
+            COPY package.json .
+
+            RUN npm install
+
+            COPY . .
+
+            EXPOSE 80
+
+            ENV MONGODB_USERNAME=root
+            ENV MONGODB_PASSWORD=root
+
+            CMD [ "npm", "run", "start" ]
+            ```
+
+        -   MongoDB 주소에 env를 참고하도록 설정
+
+            ```javascript
+            mongoose.connect(
+                `mongodb://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}@mongodb:27017/course-goals?authSource=admin`,
+                {
+                    useNewUrlParser: true,
+                    useUnifiedTopology: true,
+                },
+                (err) => {
+                    if (err) {
+                        console.error("FAILED TO CONNECT TO MONGODB");
+                        console.error(err);
+                    } else {
+                        console.log("CONNECTED TO MONGODB");
+                        app.listen(80);
+                    }
+                }
+            );
+            ```
+
+        -   Dockerfile이 변경되었으니 `docker build`를 재진행하고 `docker run` 진행 시 -e flag로 환경변수를 전달
+
+            ```shell
+            docker build -t goals-node .
+            docker run --name goals-backend -v $(pwd):/app:ro -v logs:/app/logs -v /app/node_modules -e MONGODB_USERNAME=admin -e MONGODB_PASSWORD=secret --rm -d -p 80:80 --network goals-net goals-node
+            ```
+
 ### Section 6 Docker Compose: 우아한 다중 컨테이너 오케스트레이션
 
 ### Section 7 유틸리티 컨테이너로 작업하기 & 컨테이너에서 명령 실행하기

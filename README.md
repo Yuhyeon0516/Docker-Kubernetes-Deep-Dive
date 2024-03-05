@@ -722,6 +722,43 @@
         docker run --name mongodb -v data:/data/db --rm -d --network goals-net mongo
         ```
 
+-   MongoDB Database 보안
+
+    -   Docker hub의 mongo docs를 보면 환경변수로 username과 password를 설정할 수 있게 되어있음
+    -   이는 보안에 중점을 둔 옵션이며 실제 제품에서는 필수적으로 적용해야함
+    -   MongoDB를 `docker run`할 때 -e flag로 username과 password를 전달해줌
+
+        ```shell
+        docker run --name mongodb -v data:/data/db --rm -d --network goals-net -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=secret mongo
+        ```
+
+    -   이후 backend에서도 주소를 입력 시 `[username:password@]`양식으로 전달해줌(추후 제품에서는 당연히 env로 관리해야하나 지금은 test 환경이니 주소에 바로 적음)
+
+        ```javascript
+        mongoose.connect(
+            // "mongodb://mongodb:27017/course-goals", <- 이전
+            "mongodb://admin:secret@mongodb:27017/course-goals?authSource=admin",
+            {
+                useNewUrlParser: true,
+                useUnifiedTopology: true,
+            },
+            (err) => {
+                if (err) {
+                    console.error("FAILED TO CONNECT TO MONGODB");
+                    console.error(err);
+                } else {
+                    console.log("CONNECTED TO MONGODB");
+                    app.listen(80);
+                }
+            }
+        );
+        ```
+
+        ```shell
+        docker build -t goals-node .
+        docker run --name goals-backend --rm -d -p 80:80 --network goals-net goals-node
+        ```
+
 ### Section 6 Docker Compose: 우아한 다중 컨테이너 오케스트레이션
 
 ### Section 7 유틸리티 컨테이너로 작업하기 & 컨테이너에서 명령 실행하기

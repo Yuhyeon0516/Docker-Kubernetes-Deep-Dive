@@ -21,7 +21,7 @@
 
     -   Dockerfile 구성
 
-        ```docker
+        ```dockerfile
         # 다음 강의에 명령어에 대해 더 자세히 배워 볼 예정
 
         FROM node:14 # Node.js를 14버전 사용
@@ -56,7 +56,7 @@
 
     -   Dockerfile
 
-        ```docker
+        ```dockerfile
         FROM node # node image를 docker hub에서 가져옴
 
         WORKDIR /app # 아래 명령들의 작업 디렉토리를 /app으로 설정
@@ -92,7 +92,7 @@
             <tr>
             <td>
 
-            ```docker
+            ```dockerfile
             FROM node
 
             WORKDIR /app
@@ -111,7 +111,7 @@
             </td>
             <td>
 
-            ```docker
+            ```dockerfile
             FROM node
 
             WORKDIR /app
@@ -166,7 +166,7 @@
 
     -   Dockerfile을 아래와 같이 구성하고 `docker build`와 `docker run`을 실행하면 에러가 발생한다. 이럴떄 사용하여야 하는것이 interactive mode이다.
 
-        ```docker
+        ```dockerfile
         FROM python
 
         WORKDIR /app
@@ -434,6 +434,113 @@
         ```
 
 ### Section 4 네트워킹: (교차) 컨테이너 통신
+
+-   이제 여기서부터가 가장 배우고 싶던 네트워크 통신에 대한 내용이다.
+    -   Front단과 Back단을 Docker에서 어떻게 통신하는지 배워보고 싶었다.
+-   총 3개의 case로 study를 할 것이다.
+
+    -   case 1 : www 통신(웹 API와 같은)
+        -   기본적으로 container 내부에서 웹 API와 같은 http/https으로의 통신은 가능하다.
+    -   case 2 : Container에서 로컬 호스트 머신으로의 통신(MongoDB와 유사한 외부 데이터베이스를 로컬 호스트에서 동작시킬때와 같은)
+        -   Docker 내부의 localhost를 사용하려면 host.docker.internal을 사용하면 된다.(localhost:3000 = host.docker.internal:3000)
+    -   case 3 : Container 간 통신
+
+        -   Docker hub에 있는 공식 mongo image를 이용하여 새로운 컨테이너를 구축
+            ```shell
+            docker run -d --name mongodb mongo
+            docker ps
+            ''' 아래와 같이 mongo db가 docker container 27017 port에서 동작하고있음
+            CONTAINER ID   IMAGE     COMMAND                  CREATED          STATUS          PORTS       NAMES
+            dac36adb4ab7   mongo     "docker-entrypoint.s…"   18 seconds ago   Up 17 seconds   27017/tcp   mongodb
+            '''
+            docker inspect mongodb
+            ''' inspect를 실행하여 mongodb의 ip주소를 확인할 수 있음(현재는 172.17.0.2)
+            "NetworkSettings": {
+            "Bridge": "",
+            "SandboxID": "ce22d8a98c7d68ba28b39758a8b86825b2b460d59e03d35de543bfe97433bf52",
+            "SandboxKey": "/var/run/docker/netns/ce22d8a98c7d",
+            "Ports": {
+                "27017/tcp": null
+            },
+            "HairpinMode": false,
+            "LinkLocalIPv6Address": "",
+            "LinkLocalIPv6PrefixLen": 0,
+            "SecondaryIPAddresses": null,
+            "SecondaryIPv6Addresses": null,
+            "EndpointID": "bfcaaa359f3184bba112f0896398e817f5587cbd1e2b761f597660f65087dbba",
+            "Gateway": "172.17.0.1",
+            "GlobalIPv6Address": "",
+            "GlobalIPv6PrefixLen": 0,
+            "IPAddress": "172.17.0.2",
+            "IPPrefixLen": 16,
+            "IPv6Gateway": "",
+            "MacAddress": "02:42:ac:11:00:02",
+            "Networks": {
+                "bridge": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "MacAddress": "02:42:ac:11:00:02",
+                    "NetworkID": "871b5d200e5131b59ccb449219adb6b1f030104784c98f3d7d68baff61f0780c",
+                    "EndpointID": "bfcaaa359f3184bba112f0896398e817f5587cbd1e2b761f597660f65087dbba",
+                    "Gateway": "172.17.0.1",
+                    "IPAddress": "172.17.0.2",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DriverOpts": null,
+                    "DNSNames": null
+                }
+            }
+            '''
+            ```
+        -   이후 위에서 확인된 mongodb 주소를 가지고 앱에서 mongodb에 연결할 떄 주소를 아래와 같이 변경
+            ```javascript
+            mongoose.connect(
+                "mongodb://172.17.0.2:27017/swfavorites",
+                { useNewUrlParser: true },
+                (err) => {
+                    if (err) {
+                        console.log(err);
+                    } else {
+                        app.listen(3000);
+                    }
+                }
+            );
+            ```
+        -   `docker build`, `docker run`을 진행
+
+            ```shell
+            docker build -t favorites-node .
+            docker run --name favorites -d --rm -p 3000:3000 favorites-node
+            ```
+
+        -   그러나 위와 같이 진행하면 매번 container를 inspect해서 ip address를 찾고 하는 과정이 반복된다.
+        -   이를 개선하기 위해 network 기능이 있다.
+            ```shell
+            docker network create favorites-net # favorites-net이라는 network를 생성
+            docker run -d --name mongodb --network favorites-net mongo # favorites-net network에 mongo를 연결
+            ```
+            ```javascript
+            mongoose.connect(
+                "mongodb://mongodb:27017/swfavorites",
+                { useNewUrlParser: true },
+                (err) => {
+                    if (err) {
+                        console.log(err);
+                    } else {
+                        app.listen(3000);
+                    }
+                }
+            );
+            // container간 동일한 network에 있다면 ip address대신 container 이름으로 접근이 가능하다.
+            // 현재는 mongo를 mongodb라는 container에 실행시켜놨기 때문에 위와 같은 예시가 가능하다.
+            ```
+            ```shell
+            docker build -t favorites-node .
+            docker run --name favorites --network favorites-net -d --rm -p 3000:3000 favorites-node # --network flag로 mongodb와 동일한 network에 연결
+            ```
 
 ### Section 5 Docker로 다중 컨테이너 애플리케이션 구축하기
 

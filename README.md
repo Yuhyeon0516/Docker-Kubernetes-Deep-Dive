@@ -547,12 +547,21 @@
 -   보통의 앱들은 Database, Frontend, Backend 등 다양한 컨테이너가 필요한 경우가 많음
 -   그 상황을 위해 Multi container를 구성해보려고 한다.
 -   이 데모앱은 총 3개의 Building Blocks로 이루어져있다.
+
     -   Database
         -   MongoDB 이용
     -   Backend
         -   NodeJS 기반 REST API
     -   Frontend
         -   React 기반의 SPA 웹
+
+-   먼저 MongoDB를 도커화 해보겠음
+    ```shell
+    docker run --name mongodb --rm -d -p 27017:27017 mongo # 현재는 backend를 도커화 안하였기때문에 localhost:27017로 mongodb를 노출시키기 위해 -p flag를 이용함
+    cd backend
+    npm install
+    node app.js # CONNECTED TO MONGODB log 확인
+    ```
 
 ### Section 6 Docker Compose: 우아한 다중 컨테이너 오케스트레이션
 

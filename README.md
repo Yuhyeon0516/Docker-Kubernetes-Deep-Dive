@@ -556,12 +556,63 @@
         -   React 기반의 SPA 웹
 
 -   먼저 MongoDB를 도커화 해보겠음
+
     ```shell
     docker run --name mongodb --rm -d -p 27017:27017 mongo # 현재는 backend를 도커화 안하였기때문에 localhost:27017로 mongodb를 노출시키기 위해 -p flag를 이용함
     cd backend
     npm install
     node app.js # CONNECTED TO MONGODB log 확인
     ```
+
+-   Backend를 도커화 해보겠음
+
+    -   먼저 Dockerfile을 구성
+
+        ```dockerfile
+        FROM node
+
+        WORKDIR /app
+
+        COPY package.json .
+
+        RUN npm install
+
+        COPY . .
+
+        EXPOSE 80
+
+        CMD [ "node", "app.js" ]
+        ```
+
+    -   그리고 Backend도 이제 docker container에서 실행할 것이기 때문에 app.js의 mongodb 주소를 localhost에서 host.docker.internal로 변경
+
+        ```javascript
+        mongoose.connect(
+            //"mongodb://localhost:27017/course-goals", <- 이전
+            "mongodb://host.docker.internal:27017/course-goals",
+            {
+                useNewUrlParser: true,
+                useUnifiedTopology: true,
+            },
+            (err) => {
+                if (err) {
+                    console.error("FAILED TO CONNECT TO MONGODB");
+                    console.error(err);
+                } else {
+                    console.log("CONNECTED TO MONGODB");
+                    app.listen(80);
+                }
+            }
+        );
+        ```
+
+    -   이후 `docker build`, `docker run` 진행
+
+        ```shell
+        cd backend
+        docker build -t goals-node .
+        docker run --name goals-backend --rm -d goals-node
+        ```
 
 ### Section 6 Docker Compose: 우아한 다중 컨테이너 오케스트레이션
 

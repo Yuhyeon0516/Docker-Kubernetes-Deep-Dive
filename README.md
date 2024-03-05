@@ -614,6 +614,33 @@
         docker run --name goals-backend --rm -d goals-node
         ```
 
+-   Frontend를 도커화
+
+    -   먼저 Dockerfile을 구성
+
+        ```dockerfile
+        FROM node
+
+        WORKDIR /app
+
+        COPY package.json .
+
+        RUN npm install
+
+        COPY . .
+
+        EXPOSE 3000
+
+        CMD [ "npm", "run", "start" ]
+        ```
+
+    -   이후 `docker build`, `docker run` 진행
+
+        ```shell
+        docker build -t goals-react .
+        docker run --name goals-frontend --rm -d -p 3000:3000 -it goals-react # React 앱의 경우 대화형 상호작용을 위해 -it flag를 추가하여야한다
+        ```
+
 ### Section 6 Docker Compose: 우아한 다중 컨테이너 오케스트레이션
 
 ### Section 7 유틸리티 컨테이너로 작업하기 & 컨테이너에서 명령 실행하기

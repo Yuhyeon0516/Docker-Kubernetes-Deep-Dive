@@ -2,7 +2,7 @@
 
 -   Udemy의 https://www.udemy.com/course/docker-kubernetes-2022 강의를 참고하여 공부하려고 한다.
 -   편안하게 공부한것을 적는 일기장임
--   내부의 코드들은 대부분 강의에서 제공됨
+-   내부의 코드들은 대부분 강의에서 제공되었고 Docker의 구축 및 배포에 중점을 두었다.
 
 ### Section 1 Tutorial
 
@@ -543,6 +543,16 @@
             ```
 
 ### Section 5 Docker로 다중 컨테이너 애플리케이션 구축하기
+
+-   보통의 앱들은 Database, Frontend, Backend 등 다양한 컨테이너가 필요한 경우가 많음
+-   그 상황을 위해 Multi container를 구성해보려고 한다.
+-   이 데모앱은 총 3개의 Building Blocks로 이루어져있다.
+    -   Database
+        -   MongoDB 이용
+    -   Backend
+        -   NodeJS 기반 REST API
+    -   Frontend
+        -   React 기반의 SPA 웹
 
 ### Section 6 Docker Compose: 우아한 다중 컨테이너 오케스트레이션
 

@@ -710,6 +710,18 @@
                     docker run --name goals-frontend --rm -d -p 3000:3000 -it goals-react # localhost:80으로 접근할 예정이라 --network flag는 이제 필요 없어짐
                     ```
 
+-   Volume을 이용한 MongoDB 데이터 지속성 추가
+
+    -   Docker hub의 mongo docs를 보면 data store는 docker container 내부의 /data/db에 있다고 설명되어있음(https://hub.docker.com/_/mongo)
+
+        ![where to stor data]()
+
+    -   그래서 mongodb의 데이터에 지속성을 추가하려면 -v flag를 이용하여 :/data/db를 유지시켜주면된다.
+
+        ```shell
+        docker run --name mongodb -v data:/data/db --rm -d --network goals-net mongo
+        ```
+
 ### Section 6 Docker Compose: 우아한 다중 컨테이너 오케스트레이션
 
 ### Section 7 유틸리티 컨테이너로 작업하기 & 컨테이너에서 명령 실행하기

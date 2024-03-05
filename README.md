@@ -885,6 +885,14 @@
             docker run --name goals-backend -v $(pwd):/app:ro -v logs:/app/logs -v /app/node_modules -e MONGODB_USERNAME=admin -e MONGODB_PASSWORD=secret --rm -d -p 80:80 --network goals-net goals-node
             ```
 
+-   Frontend(React) container에 대한 code live update 추가
+
+    -   다른 설정은 필요없고 bind mount를 이용하여 src 폴더 변경을 감지하도록 추가
+
+        ```shell
+        docker run -v $(pwd)/src:/app/src:ro --name goals-frontend --rm -p 3000:3000 -it goals-react
+        ```
+
 ### Section 6 Docker Compose: 우아한 다중 컨테이너 오케스트레이션
 
 ### Section 7 유틸리티 컨테이너로 작업하기 & 컨테이너에서 명령 실행하기

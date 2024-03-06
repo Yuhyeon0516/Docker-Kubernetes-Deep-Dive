@@ -1197,6 +1197,116 @@
         docker-compose up -d server php mysql server
         ```
 
+    -   다른 utility container 추가
+
+        -   artisan container 추가(artisan이란 laravel에서 database test를 진행할 수 있는 tool)
+
+            ```yaml
+            version: "3.8"
+
+            services:
+                server:
+                    image: "nginx:stable-alpine"
+                    ports:
+                        - "8000:80"
+                    volumes:
+                        - ./src:/var/www/html
+                        - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+                    depends_on:
+                        - php
+                        - mysql
+                php:
+                    build:
+                        context: .
+                        dockerfile: dockerfiles/php.dockerfile
+                    volumes:
+                        - ./src:/var/www/html:delegated
+                    ports:
+                        - "3000:9000"
+                mysql:
+                    image: mysql
+                    env_file:
+                        - ./env/mysql.env
+                composer:
+                    build:
+                        context: ./dockerfiles
+                        dockerfile: composer.dockerfile
+                    volumes:
+                        - ./src:/var/www/html
+                artisan:
+                    build:
+                        context: .
+                        dockerfile: dockerfiles/php.dockerfile
+                    volumes:
+                        - ./src:/var/www/html
+                    entrypoint: ["php", "/var/www/html/artisan"]
+            ```
+
+            -   이후 database test를 위해 migrate 명령어 진행
+
+                ```shell
+                docker-compose run --rm artisan migrate
+
+                '''출력결과
+                Migration table created successfully.
+                Migrating: 2014_10_12_000000_create_users_table
+                Migrated:  2014_10_12_000000_create_users_table (14.00ms)
+                Migrating: 2014_10_12_100000_create_password_resets_table
+                Migrated:  2014_10_12_100000_create_password_resets_table (11.06ms)
+                Migrating: 2019_08_19_000000_create_failed_jobs_table
+                Migrated:  2019_08_19_000000_create_failed_jobs_table (12.59ms)
+                '''
+                ```
+
+        -   node container 추가
+
+            ```yaml
+            version: "3.8"
+
+            services:
+                server:
+                    image: "nginx:stable-alpine"
+                    ports:
+                        - "8000:80"
+                    volumes:
+                        - ./src:/var/www/html
+                        - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+                    depends_on:
+                        - php
+                        - mysql
+                php:
+                    build:
+                        context: .
+                        dockerfile: dockerfiles/php.dockerfile
+                    volumes:
+                        - ./src:/var/www/html:delegated
+                    ports:
+                        - "3000:9000"
+                mysql:
+                    image: mysql
+                    env_file:
+                        - ./env/mysql.env
+                composer:
+                    build:
+                        context: ./dockerfiles
+                        dockerfile: composer.dockerfile
+                    volumes:
+                        - ./src:/var/www/html
+                artisan:
+                    build:
+                        context: .
+                        dockerfile: dockerfiles/php.dockerfile
+                    volumes:
+                        - ./src:/var/www/html
+                    entrypoint: ["php", "/var/www/html/artisan"]
+                npm:
+                    image: node
+                    working_dir: /var/www/html
+                    entrypoint: ["npm"]
+                    volumes:
+                        - ./src:/var/www/html
+            ```
+
 ### Section 9 Docker 컨테이너 배포하기
 
 ### Section 10 요약

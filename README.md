@@ -976,6 +976,71 @@
 
 ### Section 7 유틸리티 컨테이너로 작업하기 & 컨테이너에서 명령 실행하기
 
+-   Utility Container란?
+
+    -   기존의 Application Container는 환경과 앱이 같이 들어있었으나, Utility Container는 환경에 대한것만 담아두는 container라고 생각하면 된다.
+
+-   Utility Container를 왜 사용하는가?
+
+    -   Host machine 즉 내 PC에 특정 환경을 설치할 필요가 없이 docker를 이용하여 환경 구축이 가능함
+    -   추가로 Laravel이나 PHP와 같은 구축 상태에서 특정 환경을 요구하는 경우가 있어서 이때 PC에 셋업하는 과정이 복잡하고 용량도 크기에 Utility Container를 사용하여 구축 후 사용
+
+-   Utility Container 구축 실습
+
+    -   Dockerfile을 아래와 같이 작성
+
+        ```dockerfile
+        FROM node:21-alpine
+
+        WORKDIR /app
+        ```
+
+    -   이후 bind mount를 이용하여 내 PC의 node 환경이 아닌 docker의 node 환경을 이용하여 npm init이 가능해진다.
+
+        ```shell
+        docker run -it -v $(pwd):/app node-util npm init
+        ```
+
+-   ENTRYPOINT 활용
+
+    -   Dockerfile에서 ENTRYPOINT를 활용하면 아래와 같이 사용이 가능하다
+
+        ```dockerfile
+        FROM node:21-alpine
+
+        WORKDIR /app
+
+        ENTRYPOINT [ "npm" ]
+        ```
+
+        ```shell
+        # npm 명령어를 생략 가능
+        docker run -it -v $(pwd):/app node-util init
+        docker run -it -v $(pwd):/app node-util install express
+        ```
+
+    -   CMD와 차이점은 CMD는 입력된 명령어로 기존 명령어가 덮히는 방면에 ENTRYPOINT는 입력된 명령어 앞에 진입점처럼 사용됨
+
+-   Docker compose 활용
+
+    -   docker-compose.yaml을 아래와 같이 설정하여 docker compose에서도 활용이 가능함
+
+        ```yaml
+        version: "3.8"
+
+        services:
+            npm:
+                build: ./
+                stdin_open: true
+                tty: true
+                volumes:
+                    - ./:/app
+        ```
+
+        ```shell
+        docker-compose run npm init
+        ```
+
 ### Section 8 더 복잡한 설정: Laravel & PHP 도커화
 
 ### Section 9 Docker 컨테이너 배포하기

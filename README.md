@@ -1145,6 +1145,52 @@
                     - ./env/mysql.env
         ```
 
+    -   Compose utility container 추가
+
+        ```yaml
+        version: "3.8"
+
+        services:
+            server:
+                image: "nginx:stable-alpine"
+                ports:
+                    - "8000:80"
+                volumes:
+                    - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+            php:
+                build:
+                    context: ./dockerfiles
+                    dockerfile: php.dockerfile
+                volumes:
+                    - ./src:/var/www/html:delegated
+                ports:
+                    - "3000:9000"
+            mysql:
+                image: mysql
+                env_file:
+                    - ./env/mysql.env
+            composer:
+                build:
+                    context: ./dockerfiles
+                    dockerfile: composer.dockerfile
+                volumes:
+                    - ./src:/var/www/html
+        ```
+
+        ```dockerfile
+        FROM composer:latest
+
+        WORKDIR /var/www/html
+
+        ENTRYPOINT [ "composer", "--ignore-platform-reqs" ]
+        ```
+
+    -   이후 composer를 이용하여 laravel 앱을 생성
+
+        ```shell
+        docker-compose run --rm composer create-project --prefer-dist laravel/laravel .
+        ```
+
 ### Section 9 Docker 컨테이너 배포하기
 
 ### Section 10 요약

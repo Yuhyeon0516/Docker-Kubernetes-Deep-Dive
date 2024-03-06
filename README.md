@@ -1191,6 +1191,12 @@
         docker-compose run --rm composer create-project --prefer-dist laravel/laravel .
         ```
 
+    -   server(nginx), php(laravel), mysql을 실행
+
+        ```shell
+        docker-compose up -d server php mysql server
+        ```
+
 ### Section 9 Docker 컨테이너 배포하기
 
 ### Section 10 요약

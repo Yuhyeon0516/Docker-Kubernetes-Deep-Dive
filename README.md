@@ -1119,6 +1119,32 @@
         RUN docker-php-ext-install pdo pdo_mysql
         ```
 
+    -   MySQL container 추가
+
+        ```yaml
+        version: "3.8"
+
+        services:
+            server:
+                image: "nginx:stable-alpine"
+                ports:
+                    - "8000:80"
+                volumes:
+                    - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+            php:
+                build:
+                    context: ./dockerfiles
+                    dockerfile: php.dockerfile
+                volumes:
+                    - ./src:/var/www/html:delegated
+                ports:
+                    - "3000:9000"
+            mysql:
+                image: mysql
+                env_file:
+                    - ./env/mysql.env
+        ```
+
 ### Section 9 Docker 컨테이너 배포하기
 
 ### Section 10 요약

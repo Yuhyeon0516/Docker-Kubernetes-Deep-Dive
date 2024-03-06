@@ -714,7 +714,7 @@
 
     -   Docker hub의 mongo docs를 보면 data store는 docker container 내부의 /data/db에 있다고 설명되어있음(https://hub.docker.com/_/mongo)
 
-        ![where to stor data]()
+        ![where to stor data](https://github.com/Yuhyeon0516/Docker-Kubernetes-Deep-Dive/assets/120432007/97efe17d-1abd-4499-8421-4090622f8b42)
 
     -   그래서 mongodb의 데이터에 지속성을 추가하려면 -v flag를 이용하여 :/data/db를 유지시켜주면된다.
 
@@ -1050,7 +1050,7 @@
     -   심지어 Request 요청에 따라 처리해줄 웹 서버가 필요하고 그를 구성해줘야함(생각보다 더 복잡함)
     -   이번 실습은 아래와 같은 구성으로 이루어짐
 
-        ![target]()
+        ![target](https://github.com/Yuhyeon0516/Docker-Kubernetes-Deep-Dive/assets/120432007/8f9354af-2f39-4ab6-93a7-ebe2f8ba27ed)
 
     -   먼저 웹 서버용 Nginx container를 추가
 

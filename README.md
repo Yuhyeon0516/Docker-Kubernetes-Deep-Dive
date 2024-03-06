@@ -895,6 +895,85 @@
 
 ### Section 6 Docker Compose: 우아한 다중 컨테이너 오케스트레이션
 
+-   사실 앞서 설정한 network를 이용한 docker 다중 container는 commend를 입력하기 힘들고 반복적인 작업이 많다는 단점이 있음
+-   이를 극복하기 위해 docker compose 기능을 배워보려고함
+-   Docker compose란?
+
+    -   지금까지 진행한 `docker build`, `docker run`의 반복적인 작업을 자동화하여 터미널이 아닌 파일로 설정하고 실행함
+
+-   Docker compose를 설정하는 방법
+
+    -   Root 경로에 `docker-compose.yaml` 파일을 생성한다.
+    -   이후 `docker-compose.yaml`에 아래와 같은 내용을 작성
+
+        ```yaml
+        version: "3.8"
+        # https://docs.docker.com/compose/compose-file/compose-versioning/
+        # 위 링크에서 docker compose version에 대한 정보를 알 수 있음
+
+        services: # services는 각각의 service의 집합체 즉 최상위 container이다.
+            mongodb: # services 하위에 mongodb라는 service가 있다.
+                image: mongo # mongo image를 사용
+                volumes: # volume을 설정
+                    - data:/data/db
+                # 환경 설정에는 아래와 같이 두개의 방법이 있음
+                # 그러나 실제 프로덕트 환경에서 env를 노출시키면 안되니 env_file로 관리하는게 좋을듯
+                # environment:
+                #     MONGO_INITDB_ROOT_USERNAME: admin
+                #     MONGO_INITDB_ROOT_PASSWORD: secret
+                env_file:
+                    - ./env/mongo.env
+
+            backend: # services 하위에 backend라는 service가 있다.
+                # local image를 이용하는 경우 기존에는 build 후 run을 진행하였음
+                # docker compose에서는 위 build 과정까지 자동으로 도와줌
+                # build가 필요한 경로를 전달해주면 거기서 Dockerfile을 찾아 build를 진행함
+                # build:
+                #     context: ./backend
+                #     dockerfile: Dockerfile
+                build: ./backend
+                # "외부포트:내부포트"로 설정
+                ports:
+                    - "80:80"
+                volumes:
+                    - logs:/app/logs
+                    - ./backend:/app
+                    - /app/node_modules
+                env_file:
+                    - ./env/backend.env
+                # mongodb가 먼저 구축이 되어야 backend를 동작시킬 수 있기때문에 의존성을 추가
+                depends_on:
+                    - mongodb
+
+            frontend: # services 하위에 frontend라는 service가 있다.
+                build: ./frontend
+                ports:
+                    - "3000:3000"
+                volumes:
+                    - ./frontend/src:/app/src
+                # 기존에 -it flag를 이용하여 docker run을 진행하였고
+                # 그것은 아래와 같은 옵션으로 정의할 수 있음
+                stdin_open: true
+                tty: true
+                depends_on:
+                    - backend
+
+        # 위 services에 사용되는 명명된 볼륨을 전부 나열해야 사용할 수 있음
+        volumes:
+            data:
+            logs:
+        ```
+
+    -   `docker-compose up`을 실행하면 `docker-compose.yaml`을 확인하여 필요한 volume 및 network를 생성하고 container를 실행시킴
+        -   `docker-compose up -d`을 진행하면 dettach mode로 실행됨
+            -   그래서 각각의 service 설정에서 dettach mode는 설정이 필요없음
+        -   `docker-compose up --build`를 진행하면 image를 강제로 re-build 할 수 있음
+    -   `docker-compose down`을 실행하면 실행되고있는 container가 중지되고 사용하던 network, container 모두 삭제됨(volume은 유지됨)
+
+        -   그래서 --rm flag의 설정이 필요없음
+
+    -   -network flag 설정은 docker compose 안에 있는 모든 service는 동일한 네트워크에 소속되도록 자동으로 설정됨
+
 ### Section 7 유틸리티 컨테이너로 작업하기 & 컨테이너에서 명령 실행하기
 
 ### Section 8 더 복잡한 설정: Laravel & PHP 도커화

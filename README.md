@@ -1054,6 +1054,71 @@
 
     -   먼저 웹 서버용 Nginx container를 추가
 
+        ```yaml
+        version: "3.8"
+
+        services:
+            server:
+                image: "nginx:stable-alpine"
+                ports:
+                    - "8000:80"
+                volumes:
+                    - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+        ```
+
+        ```nginx
+        server {
+            listen 80;
+            index index.php index.html;
+            server_name localhost;
+            root /var/www/html/public;
+            location / {
+                try_files $uri $uri/ /index.php?$query_string;
+            }
+            location ~ \.php$ {
+                try_files $uri =404;
+                fastcgi_split_path_info ^(.+\.php)(/.+)$;
+                fastcgi_pass php:3000;
+                fastcgi_index index.php;
+                include fastcgi_params;
+                fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                fastcgi_param PATH_INFO $fastcgi_path_info;
+            }
+        }
+        ```
+
+    -   이후 PHP container 추가
+
+        ```yaml
+        version: "3.8"
+
+        services:
+            server:
+                image: "nginx:stable-alpine"
+                ports:
+                    - "8000:80"
+                volumes:
+                    - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+            php:
+                build:
+                    context: ./dockerfiles
+                    dockerfile: php.dockerfile
+                volumes:
+                    - ./src:/var/www/html:delegated
+                ports:
+                    - "3000:9000
+        ```
+
+        ```dockerfile
+        FROM php:8.2-fpm-alpine
+
+        WORKDIR /var/www/html
+
+        COPY src .
+
+        RUN docker-php-ext-install pdo pdo_mysql
+        ```
+
 ### Section 9 Docker 컨테이너 배포하기
 
 ### Section 10 요약

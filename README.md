@@ -714,7 +714,7 @@
 
     -   Docker hub의 mongo docs를 보면 data store는 docker container 내부의 /data/db에 있다고 설명되어있음(https://hub.docker.com/_/mongo)
 
-        ![where to stor data]()
+        ![where to stor data](https://github.com/Yuhyeon0516/Docker-Kubernetes-Deep-Dive/assets/120432007/97efe17d-1abd-4499-8421-4090622f8b42)
 
     -   그래서 mongodb의 데이터에 지속성을 추가하려면 -v flag를 이용하여 :/data/db를 유지시켜주면된다.
 
@@ -983,7 +983,7 @@
 -   Utility Container를 왜 사용하는가?
 
     -   Host machine 즉 내 PC에 특정 환경을 설치할 필요가 없이 docker를 이용하여 환경 구축이 가능함
-    -   추가로 Laravel이나 PHP와 같은 구축 상태에서 특정 환경을 요구하는 경우가 있어서 이때 PC에 셋업하는 과정이 복잡하고 용량도 크기에 Utility Container를 사용하여 구축 후 사용
+    -   추가로 Laravel이나 PHP와 같은 프레임워크에서 특정 환경을 요구하는 경우가 있어서 이때 PC에 셋업하는 과정이 복잡하고 용량도 크기에 Utility Container를 사용하여 구축 후 사용
 
 -   Utility Container 구축 실습
 
@@ -1038,10 +1038,274 @@
         ```
 
         ```shell
+        # docker-compose run (service name) (script)
         docker-compose run npm init
         ```
 
 ### Section 8 더 복잡한 설정: Laravel & PHP 도커화
+
+-   Laravel & PHP의 특별한점이 무엇이 있을까?
+
+    -   PHP가 셋업이 생각보다 엄청 까다롭다.
+    -   심지어 Request 요청에 따라 처리해줄 웹 서버가 필요하고 그를 구성해줘야함(생각보다 더 복잡함)
+    -   이번 실습은 아래와 같은 구성으로 이루어짐
+
+        ![target](https://github.com/Yuhyeon0516/Docker-Kubernetes-Deep-Dive/assets/120432007/8f9354af-2f39-4ab6-93a7-ebe2f8ba27ed)
+
+    -   먼저 웹 서버용 Nginx container를 추가
+
+        ```yaml
+        version: "3.8"
+
+        services:
+            server:
+                image: "nginx:stable-alpine"
+                ports:
+                    - "8000:80"
+                volumes:
+                    - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+        ```
+
+        ```nginx
+        server {
+            listen 80;
+            index index.php index.html;
+            server_name localhost;
+            root /var/www/html/public;
+            location / {
+                try_files $uri $uri/ /index.php?$query_string;
+            }
+            location ~ \.php$ {
+                try_files $uri =404;
+                fastcgi_split_path_info ^(.+\.php)(/.+)$;
+                fastcgi_pass php:3000;
+                fastcgi_index index.php;
+                include fastcgi_params;
+                fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                fastcgi_param PATH_INFO $fastcgi_path_info;
+            }
+        }
+        ```
+
+    -   이후 PHP container 추가
+
+        ```yaml
+        version: "3.8"
+
+        services:
+            server:
+                image: "nginx:stable-alpine"
+                ports:
+                    - "8000:80"
+                volumes:
+                    - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+            php:
+                build:
+                    context: ./dockerfiles
+                    dockerfile: php.dockerfile
+                volumes:
+                    - ./src:/var/www/html:delegated
+                ports:
+                    - "3000:9000
+        ```
+
+        ```dockerfile
+        FROM php:8.2-fpm-alpine
+
+        WORKDIR /var/www/html
+
+        COPY src .
+
+        RUN docker-php-ext-install pdo pdo_mysql
+        ```
+
+    -   MySQL container 추가
+
+        ```yaml
+        version: "3.8"
+
+        services:
+            server:
+                image: "nginx:stable-alpine"
+                ports:
+                    - "8000:80"
+                volumes:
+                    - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+            php:
+                build:
+                    context: ./dockerfiles
+                    dockerfile: php.dockerfile
+                volumes:
+                    - ./src:/var/www/html:delegated
+                ports:
+                    - "3000:9000"
+            mysql:
+                image: mysql
+                env_file:
+                    - ./env/mysql.env
+        ```
+
+    -   Compose utility container 추가
+
+        ```yaml
+        version: "3.8"
+
+        services:
+            server:
+                image: "nginx:stable-alpine"
+                ports:
+                    - "8000:80"
+                volumes:
+                    - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+            php:
+                build:
+                    context: ./dockerfiles
+                    dockerfile: php.dockerfile
+                volumes:
+                    - ./src:/var/www/html:delegated
+                ports:
+                    - "3000:9000"
+            mysql:
+                image: mysql
+                env_file:
+                    - ./env/mysql.env
+            composer:
+                build:
+                    context: ./dockerfiles
+                    dockerfile: composer.dockerfile
+                volumes:
+                    - ./src:/var/www/html
+        ```
+
+        ```dockerfile
+        FROM composer:latest
+
+        WORKDIR /var/www/html
+
+        ENTRYPOINT [ "composer", "--ignore-platform-reqs" ]
+        ```
+
+    -   이후 composer를 이용하여 laravel 앱을 생성
+
+        ```shell
+        docker-compose run --rm composer create-project --prefer-dist laravel/laravel .
+        ```
+
+    -   server(nginx), php(laravel), mysql을 실행
+
+        ```shell
+        docker-compose up -d server php mysql server
+        ```
+
+    -   다른 utility container 추가
+
+        -   artisan container 추가(artisan이란 laravel에서 database test를 진행할 수 있는 tool)
+
+            ```yaml
+            version: "3.8"
+
+            services:
+                server:
+                    image: "nginx:stable-alpine"
+                    ports:
+                        - "8000:80"
+                    volumes:
+                        - ./src:/var/www/html
+                        - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+                    depends_on:
+                        - php
+                        - mysql
+                php:
+                    build:
+                        context: .
+                        dockerfile: dockerfiles/php.dockerfile
+                    volumes:
+                        - ./src:/var/www/html:delegated
+                    ports:
+                        - "3000:9000"
+                mysql:
+                    image: mysql
+                    env_file:
+                        - ./env/mysql.env
+                composer:
+                    build:
+                        context: ./dockerfiles
+                        dockerfile: composer.dockerfile
+                    volumes:
+                        - ./src:/var/www/html
+                artisan:
+                    build:
+                        context: .
+                        dockerfile: dockerfiles/php.dockerfile
+                    volumes:
+                        - ./src:/var/www/html
+                    entrypoint: ["php", "/var/www/html/artisan"]
+            ```
+
+            -   이후 database test를 위해 migrate 명령어 진행
+
+                ```shell
+                docker-compose run --rm artisan migrate
+
+                '''출력결과
+                Migration table created successfully.
+                Migrating: 2014_10_12_000000_create_users_table
+                Migrated:  2014_10_12_000000_create_users_table (14.00ms)
+                Migrating: 2014_10_12_100000_create_password_resets_table
+                Migrated:  2014_10_12_100000_create_password_resets_table (11.06ms)
+                Migrating: 2019_08_19_000000_create_failed_jobs_table
+                Migrated:  2019_08_19_000000_create_failed_jobs_table (12.59ms)
+                '''
+                ```
+
+        -   node container 추가
+
+            ```yaml
+            version: "3.8"
+
+            services:
+                server:
+                    image: "nginx:stable-alpine"
+                    ports:
+                        - "8000:80"
+                    volumes:
+                        - ./src:/var/www/html
+                        - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+                    depends_on:
+                        - php
+                        - mysql
+                php:
+                    build:
+                        context: .
+                        dockerfile: dockerfiles/php.dockerfile
+                    volumes:
+                        - ./src:/var/www/html:delegated
+                    ports:
+                        - "3000:9000"
+                mysql:
+                    image: mysql
+                    env_file:
+                        - ./env/mysql.env
+                composer:
+                    build:
+                        context: ./dockerfiles
+                        dockerfile: composer.dockerfile
+                    volumes:
+                        - ./src:/var/www/html
+                artisan:
+                    build:
+                        context: .
+                        dockerfile: dockerfiles/php.dockerfile
+                    volumes:
+                        - ./src:/var/www/html
+                    entrypoint: ["php", "/var/www/html/artisan"]
+                npm:
+                    image: node
+                    working_dir: /var/www/html
+                    entrypoint: ["npm"]
+                    volumes:
+                        - ./src:/var/www/html
+            ```
 
 ### Section 9 Docker 컨테이너 배포하기
 

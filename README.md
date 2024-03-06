@@ -983,7 +983,7 @@
 -   Utility Container를 왜 사용하는가?
 
     -   Host machine 즉 내 PC에 특정 환경을 설치할 필요가 없이 docker를 이용하여 환경 구축이 가능함
-    -   추가로 Laravel이나 PHP와 같은 구축 상태에서 특정 환경을 요구하는 경우가 있어서 이때 PC에 셋업하는 과정이 복잡하고 용량도 크기에 Utility Container를 사용하여 구축 후 사용
+    -   추가로 Laravel이나 PHP와 같은 프레임워크에서 특정 환경을 요구하는 경우가 있어서 이때 PC에 셋업하는 과정이 복잡하고 용량도 크기에 Utility Container를 사용하여 구축 후 사용
 
 -   Utility Container 구축 실습
 
@@ -1038,10 +1038,21 @@
         ```
 
         ```shell
+        # docker-compose run (service name) (script)
         docker-compose run npm init
         ```
 
 ### Section 8 더 복잡한 설정: Laravel & PHP 도커화
+
+-   Laravel & PHP의 특별한점이 무엇이 있을까?
+
+    -   PHP가 셋업이 생각보다 엄청 까다롭다.
+    -   심지어 Request 요청에 따라 처리해줄 웹 서버가 필요하고 그를 구성해줘야함(생각보다 더 복잡함)
+    -   이번 실습은 아래와 같은 구성으로 이루어짐
+
+        ![target]()
+
+    -   먼저 웹 서버용 Nginx container를 추가
 
 ### Section 9 Docker 컨테이너 배포하기
 

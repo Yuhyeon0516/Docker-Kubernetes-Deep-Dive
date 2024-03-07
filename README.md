@@ -1424,10 +1424,10 @@
 
 -   수동 배포에서 관리형 서비스로 변경
 
-    -   관리형 서비스를 사용하려면 AWS ECS(Elastic Container Servic)를 사용하여야한다
+    -   관리형 서비스를 사용하려면 AWS ECS(Elastic Container Service)를 사용하여야한다
     -   ECS를 사용하면 생성, 관리, 업데이트 등 모든것을 자동화하고 모니터링할 수 있음
     -   그래서 ECS를 이용하여 배포해보려고 한다.
-    -   ECS도 Free tier가 있긴하나 6개월만 Free이니 요금을 잘 확인하고 사용하여야한다.(과거에는 아에 Free tier가 없었는데 생긴듯하다)
+    -   그러나 ECS는 Free tier가 없으니 적당한 비용을 감수하고 하여야한다.
 
 -   AWS ECS를 이용한 배포
 
@@ -1443,8 +1443,72 @@
     번외) 강의가 최신화가 안되어있어 https://velog.io/@ekxk1234/ECS-체험기#aws-cli-설치 자료를 추가로 참고함
 
 -   AWS ECS에서 컨테이너/이미지를 업데이트 하는법은 매우 간단하다(이것 떄문에 EC2를 안쓰고 ECS로 넘어가지 않을까싶음)
+
     1. 당연히 docker image를 다시 build하면서 docker hub에 올리고
     2. 클러스터에서 실행중인 서비스를 누르고 서비스 업데이트를 진행하면된다.
+
+-   AWS ECS에 다중 컨테이너 앱 배포해보기
+
+    -   일단 가장 안타까운점은 docker에서 같은 network에 구성한 후 container 이름으로 호출하던 주소를 ECS에서는 사용하지 못함
+
+        -   그러나 동일한 태스크에 컨테이너를 구성하면 같은 네트워크에 구성되게 됨
+        -   그래서 container 이름으로 호출하던것을 localhost로 변경하면 잘 사용됨
+
+            ```javascript
+            mongoose.connect(
+                // `mongodb://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}@mongodb:27017/course-goals?authSource=admin`, <- 이전
+                `mongodb://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}@${process.env.MONGODB_URL}:27017/course-goals?authSource=admin`,
+                {
+                    useNewUrlParser: true,
+                    useUnifiedTopology: true,
+                },
+                (err) => {
+                    if (err) {
+                        console.error("FAILED TO CONNECT TO MONGODB");
+                        console.error(err);
+                    } else {
+                        console.log("CONNECTED TO MONGODB");
+                        app.listen(80);
+                    }
+                }
+            );
+            ```
+
+            ```env
+            MONGODB_USERNAME=admin
+            MONGODB_PASSWORD=secret
+            MONGODB_URL=localhost <- ECS에 배표 시
+
+            or
+
+            MONGODB_URL=mongodb <- docker local 환경에서 사용 시
+            ```
+
+    -   Backend -> DB -> Frontend 순으로 나누어 배포해보려한다.
+    -   Backend
+
+        1. docker build 진행
+
+            ```shell
+            docker build -t goals-node ./backend
+            ```
+
+        2. docker hub에 해당 image를 push
+
+            ```shell
+            docker tag goals-node yuhyeonkim/goals-node
+            docker push yuhyeonkim/goals-node
+            ```
+
+        3. AWS ECS 클러스터를 생성
+        4. 태스크 정의탭에서 새 태스크를 정의
+            - 태스크 정의 패밀리를 설정
+            - 태스크 역할에 ecsTaskExecutionRole을 선택
+            - 태스크 크기는 최소화(금액 이슈)
+            - 컨테이너 설정
+                - 도커 구성에 명령어를 `node app.js`로 변경
+                    - 그 이유는 개발 환경에서는 실시간 업데이트를 위해 nodemon을 이용한 `npm run start`를 사용했으나 배포 시에는 필요없음
+                - 환경 변수 추가
 
 ### Section 10 요약
 

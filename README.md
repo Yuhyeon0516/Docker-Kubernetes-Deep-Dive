@@ -1309,6 +1309,106 @@
 
 ### Section 9 Docker 컨테이너 배포하기
 
+-   대망의 배포 단계이다
+-   배포에는 가장 대표적인 AWS를 사용할 것이다
+    -   당연히 약간의 비용이 발생할 수 있으니 주의.
+-   배포 프로세스는 간단히 아래와 같다
+
+    1. Docker hub에 image를 push
+    2. Remote Machine(AWS, Azure, Google Cloud와 같은 Provider들)에서 image를 pull
+    3. SSH와 같은 기타 설정을 한후 www로 접속할 수 있게 제공
+
+-   Bind mount는 배포환경에서 변경점이 생김
+
+    -   배포환경에서는 실시간 업데이트와 같은 유연성이 필요하지 않기 떄문에 Bind mount를 COPY로 변경하여야한다.
+        -   Docker에서는 외부에 의존하지 않고 image로 모든것을 얻을 수 있다는 사상임
+        -   그래서 지금까지 bind mount는 최대한 명령어 선에서 해결하려 하였음(나중에 배포환경에서는 명령어 안쓰면되니까)
+
+-   첫 실습
+
+    -   AWS EC2를 이용하여 실습예정
+
+        -   AWS EC2 환경구성을 해야함
+
+            1. Amazon Machine Instance(AMI)를 선택하여야 하는데 이번에는 기본적인 Amazon Linux를 사용해보려한다.
+            2. 당연히 인스턴스 유형(Instance Type)은 Free tier를 제공해주는 t2.micro로 구성하려한다.
+            3. 이후 키페어를 생성하고 .pem을 받아둔다.(나는 이전에 쓰던 키페어가 있어서 이것을 재활용)
+            4. VPC 설정한다(아마 기본으로 생성되어있을거고 서비스별 방화벽에 대한 설정이 별도로 필요하다면 보안 그룹도 생성하여 사용하면 됨)
+            5. 설정을 다 했다면 인스턴스 시작을 누르면 약 2~3분 후 인스턴스가 시작된다.
+            6. SSH를 설정한다
+                - SSH란 Secure Shell로 네트워크 상 다른 컴퓨터의 쉘을 사용할 수 있게 해 주는 프로그램 혹은 그 프로토콜을 의미함
+                - 자세한 내용은 아래 링크에 잘 정리되어있으니 참고하고 설정에 들어가겠다
+                  (https://heekangpark.github.io/ssh/01-introduction)
+                - 앞에 받아둔 .pem 키페어에 권한을 먼저 부여한다.
+                    ```shell
+                    chmod 400 [키페어]
+                    ```
+                - 이후 ssh 명령어를 이용해 인스턴스 shell로 접속한다
+                    ```shell
+                    ssh -i [키페어] [인스턴스 주소]
+                    ```
+                - 이렇게하면 SSH를 통해 인스턴스 shell에서 명령을 수행할 수 있음
+            7. 이제 docker를 설치한다
+                ```shell
+                sudo yum update -y
+                sudo yum -y install docker
+                sudo service docker start
+                sudo usermod -a -G docker ec2-user
+                # 이후 SSH Logout후 재접속
+                sudo systemctl enable docker
+                # docker version 명령어를 이용하여 docker 명령어가 잘 동작하는지 확인
+                docker version
+                ```
+
+    -   Docker를 이용하요 배포하는 방법은 크게 2가지 있다.
+
+        1. Source code를 push/pull하여 docker run과 build를 진행하는법
+        2. Docker image를 push/pull하여 docker run만 진행하는법
+
+        -   이번에는 2번을 사용해보려고한다 1번은 Git등 설정을 좀 더 해줘야함
+
+    -   먼저 제공된 code를 가지고 local machine에서 `docker build`를 진행
+
+        ```shell
+        docker build -t single-node-app-deploy .
+        ```
+
+    -   이후 `docker run`을 진행하면 localhost에서 html을 확인할 수 있고 이러한 html을 보여주는 환경을 remote machine으로 옮기는 작업을 할 것임
+
+        ```shell
+        docker run -d --rm --name single-node-app -p 80:80 single-node-app-deploy
+        ```
+
+    -   Docker hub에 repository를 생성
+
+        -   repository 이름과 local에 있는 dockerimage 이름이 같아야하기 때문에 처음부터 맞추는걸 추천
+        -   다르면 추후에 `docker tag [현재 image name] [repository name]`을 진행하면 됨
+
+    -   이후 `docker push [repository name]`을 진행하면 docker hub에 push됨
+        -   당연히 `docker login`을 통해 권한이 있는 상태여야함
+    -   이제 docker hub에 image가 있으니 SSH로 다시 넘어가서 해당 image를 pull해서 run하면됨
+
+        -   `sudo docker run -d --rm -p 80:80 [repository name]`하면 repository는 public으로 되어있을 것이기 때문에 pull한 후 dettach mode로 run 할것임
+        -   그러나 여기서 local 환경이 arm64가 아닌 PC를 사용한다면 아래와 같은 에러를 마주하게 될 것임
+            ```shell
+            WARNING: The requested image's platform (linux/arm64/v8) does not match the detected host platform (linux/amd64/v3) and no specific platform was requested
+            exec /usr/local/bin/docker-entrypoint.sh: exec format error
+            ```
+        -   나를 예시로 들자면 현재 M2 arm64 맥북을 사용하고 있고, Amazon Linux는 amd64 기반의 환경인 상태에서 ARM에서 작성한 docker image를 AMD 기반의 환경에서 실행했기 때문에 발생하게 되는 문제이다.
+        -   이러한 문제를 해결하려면 multi platform을 지원하게 build를 진행하여야한다. 방법은 아래와 같다.
+
+            ```shell
+            # buildx에 desktop-linux 환경을 사용
+            docker buildx use desktop-linux
+            # buildx build를 통해 linux/amd64, linux/arm64를 지원하는 image를 build하고 repository로 push
+            docker buildx build --platform=linux/amd64,linux/arm64 -t [repository name] --push .
+            ```
+
+        -   이후 다시 SSH에서 `sudo docker run`을 진행하면 완료
+
+    -   인스턴스의 IPv4주소를 찾아 웹에서 접속하면 아까 local에서 보았던 웹이 동일하게 나타날 것임
+        -   만약 접속이 안된다면 인스턴스의 인바운드 보안규칙에 HTTP 80번 Port가 있는지 확인해봐야함
+
 ### Section 10 요약
 
 ### Section 11 Kubernetes 시작하기

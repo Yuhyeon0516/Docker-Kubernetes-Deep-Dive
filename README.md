@@ -1409,6 +1409,19 @@
     -   인스턴스의 IPv4주소를 찾아 웹에서 접속하면 아까 local에서 보았던 웹이 동일하게 나타날 것임
         -   만약 접속이 안된다면 인스턴스의 인바운드 보안규칙에 HTTP 80번 Port가 있는지 확인해봐야함
 
+-   컨테이너/이미지 관리 & 업데이트
+
+    -   만약 source code가 변경되면 업데이트를 어떻게?
+
+        1. 당연히 docker image를 다시 build하면서 docker hub에 올리고
+        2. 그 image를 AWS SSH에서 다시 `docker run`을 해주면된다.
+
+            ```shell
+            docker stop [container name]
+            docker pull [repository name]
+            docker run [repository name]
+            ```
+
 ### Section 10 요약
 
 ### Section 11 Kubernetes 시작하기

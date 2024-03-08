@@ -1504,7 +1504,7 @@
     -   위와 같이 pod와 container를 누군가는 시작, 종료, 교체 등을 하여야하는데 이 작업을 진행하는곳이 master node임
         -   worker node와 상호 작용하여 제어하는 control center라고 생각하면 된다.
 
-    ![아키텍쳐]()
+    ![아키텍쳐](https://github.com/Yuhyeon0516/Docker-Kubernetes-Deep-Dive/assets/120432007/85e453d1-a336-4266-bb7a-24c9deae330e)
 
 -   Kubernetes는 인프라를 관리하지 않는다!
 
@@ -1519,11 +1519,11 @@
 
 -   Worker node
 
-    ![worker node]()
+    ![worker node](https://github.com/Yuhyeon0516/Docker-Kubernetes-Deep-Dive/assets/120432007/9fe905b9-a311-4f7b-94e8-96381549ecc5)
 
 -   Master node
 
-    ![master node]()
+    ![master node](https://github.com/Yuhyeon0516/Docker-Kubernetes-Deep-Dive/assets/120432007/8b3c16ae-068c-4c27-bd78-cdb6d9d44ef4)
 
 -   중요 용어 & 개념
     -   클러스터(Cluster) : node, master, worker 노드, 배포 혹은 원하는 최종 상태를 구성하는 모든 것의 컬랙션 세트

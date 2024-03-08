@@ -1442,21 +1442,104 @@
 
     번외) 강의가 최신화가 안되어있어 https://velog.io/@ekxk1234/ECS-체험기#aws-cli-설치 자료를 추가로 참고함
 
--   AWS ECS에서 컨테이너/이미지를 업데이트 하는법은 매우 간단하다(이것 떄문에 EC2를 안쓰고 ECS로 넘어가지 않을까싶음)
+-   AWS ECS에서 컨테이너/이미지를 업데이트 하는법은 매우 간단하다
 
-    1. 당연히 docker image를 다시 build하면서 docker hub에 올리고
-    2. 클러스터에서 실행중인 서비스를 누르고 서비스 업데이트를 진행하면된다.
+    -   이것 떄문에 EC2를 안쓰고 ECS로 넘어가지 않을까싶음
+    -   그러나 EC2도 S3를 이용한 CI/CD를 구축해두면 뭐 취향차이?
+    -   방법은
 
-### Section 10 요약
+        1. 당연히 docker image를 다시 build하면서 docker hub에 올리고
+        2. 클러스터에서 실행중인 서비스를 누르고 서비스 업데이트를 진행하면된다.
 
-### Section 11 Kubernetes 시작하기
+-   아마 간단한 토이 프로젝트 느낌이라면 EC2를 쓸거같음....(대형 프로젝트면 당연히 관리형이 편하겠지만...)
 
-### Section 12 실전 Kubernetes - 핵심 개념 자세히 알아보기
+### Section 10 Kubernetes 시작하기
 
-### Section 13 Kubeernetes로 데이터 & 볼륨 관리하기
+-   수동 배포의 더 많은 문제점들
 
-### Section 14 Kubernetes 네트워킹
+    -   EC2에서 Docker로 배포를 하면 몇가지 문제를 만나게됨
 
-### Section 15 Kubernetes - 배포(AWS EKS)
+        -   인스턴스를 자체적으로 운영하고 관리하여야하고
+        -   항상 업데이트를 수동으로 해줘야하고(CI/CD 구축하면 되긴함)
+        -   컨테이너가 충돌하거나 다운이 될 수 있으며 이때는 새로운 컨테이너로 교체해줘야함
+        -   심지어 수동으로 모니터링해야함(모니터링 시스템을 구축하면 되긴하지)
+        -   트레픽이 증가하면 인스턴스의 수를 늘려야함
 
-### Section 16 마무리 정리 & 다음 단계
+    -   위와 같은 단점을 ECS가 일부 극복해줌
+        -   컨테이너가 실행되고 있는지 확인하고
+        -   컨테이너가 충돌되어 다운되면 다시 자동으로 다시 시작하고
+        -   Auto Scaling을 구축해두면 트래픽 급증을 처리하는데 도움되고
+
+-   왜 Kubernetes인가?
+
+    -   EC2에서 ECS로 전환하여도 극복하지 못하는 몇가지 단점이 있다
+        -   AWS에서 정의한대로 모든 것을 구성해야함
+            -   클러스터, 태스크, 서비스 등
+        -   다른 클라우드 서비스(provider)에서 호환이 안됨
+            -   AWS ECS에서 구축해둔것을 MS Azure로 그대로 옮기질 못함
+            -   그러면 다른 제공처의 세부 정보 및 서비스를 알아야함
+    -   위를 Kubernetes가 해결해줄것이다.
+
+-   Kubernetes란 무엇인가?
+
+    -   Kubernetes는 배포 방식, 컨테이너 스케일링, 컨테이너가 실패할 경우 모니터링 방식 등 모든 것을 정의할 수 있음
+    -   클라우드 서비스와는 독립적으로 따로 구축할 수 있음
+    -   결국 사용하는 서버가 Kubernetes 구문을 이해하고 실행할 수 있다면 클라우드 서비스와는 관계없이 모두 사용할 수 있음
+    -   그리고 클라우드 서비스의 장점을 구성 파일에 병합할 수 있음
+    -   그렇다고 클라우드 서비스들의 대안은 아님
+    -   Kubernetes 자체는 오픈 소스 프로젝트라 클라우드 서비스에서 실행할 수 있도록만 제공해주는 것
+    -   심지어 Docker의 대안이라고 할 수도 없음
+        -   Docker container와 같이 동작함
+    -   배포에서 흔히 사용되는 docker-compose 도구와 유사한 도구라고 생각하면 된다.
+
+-   Kubernetes의 아키텍쳐 & 핵심 개념
+
+    -   Pod라고 불리는 쉽게말해 docker의 container를 가지고 있음
+    -   Pod를 실행하는 worker node가 있음
+        -   AWS를 사용하면 EC2 인스턴스 하나하나가 worker node임
+    -   Kubernetes에는 프록시가 필요함
+        -   이 프록시는 Kubernetes가 worker node의 pod network 트래픽을 제어하는것에 사용된다.
+        -   즉 pod가 인터넷에 연결할 수 있는지의 여부와 내부에 실행하고 있는 컨테이너를 외부에서 어떻게 접근할 수 있는지를 제어함
+    -   여러 worker node에서 서로 다르면서 동일한 컨테이너를 생성하여 work load를 고르게 분배할 수 있음
+    -   위와 같이 pod와 container를 누군가는 시작, 종료, 교체 등을 하여야하는데 이 작업을 진행하는곳이 master node임
+        -   worker node와 상호 작용하여 제어하는 control center라고 생각하면 된다.
+
+    ![아키텍쳐](https://github.com/Yuhyeon0516/Docker-Kubernetes-Deep-Dive/assets/120432007/85e453d1-a336-4266-bb7a-24c9deae330e)
+
+-   Kubernetes는 인프라를 관리하지 않는다!
+
+    -   Kubernetes가 실행될 클러스터(AWS EKS와 같은)만 제공해준다면 모든 인프라는 Kubernetes가 대신 관리를해줌
+
+        -   Container를 포함하는 pod와 같은 unit을 생성하고
+        -   모니터링하다가 실패하면 다시 시작하고
+        -   실행하고있는 배포 상태를 확인하고
+        -   모든 작동 상태를 유지하며 모든 것을 관리해줌
+
+    -   즉 container를 배포하기위한 docker compose와 아주 유사함
+
+-   Worker node
+
+    ![worker node](https://github.com/Yuhyeon0516/Docker-Kubernetes-Deep-Dive/assets/120432007/9fe905b9-a311-4f7b-94e8-96381549ecc5)
+
+-   Master node
+
+    ![master node](https://github.com/Yuhyeon0516/Docker-Kubernetes-Deep-Dive/assets/120432007/8b3c16ae-068c-4c27-bd78-cdb6d9d44ef4)
+
+-   중요 용어 & 개념
+    -   클러스터(Cluster) : node, master, worker 노드, 배포 혹은 원하는 최종 상태를 구성하는 모든 것의 컬랙션 세트
+    -   노드(Nodes) : 하나 또는 여러개의 pod를 호스팅하는 특정 하드웨어 용량을 가지며 클러스터와 통신하거나, 클러스터 내에서 통신하는 물리적인 머신 또는 가상 머신임
+        -   마스터 노드(Master node) : 모든 worker node를 걸쳐 pod를 관리하는 컨트롤 플레인을 가진 노드
+        -   워커 노드(Worker node) : Pod를 호스팅하는 실제 머신이며, app container와 이러한 container에 필요한 리소스를 실행함
+    -   포드(Pods) : 단순히 app container와 요구 리소스가 pod라고 하는 unit에 결합되어있다고 생각하면 됨
+    -   컨테이너(Containers) : Docker의 container와 동일함
+    -   서비스(Services) : 고유한 pod 및 container에 독립적인 ip 주소를 가진 pod의 그룹
+
+### Section 11 실전 Kubernetes - 핵심 개념 자세히 알아보기
+
+### Section 12 Kubeernetes로 데이터 & 볼륨 관리하기
+
+### Section 13 Kubernetes 네트워킹
+
+### Section 14 Kubernetes - 배포(AWS EKS)
+
+### Section 15 마무리 정리 & 다음 단계
